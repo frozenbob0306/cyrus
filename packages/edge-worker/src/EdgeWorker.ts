@@ -5252,7 +5252,6 @@ ${input.userComment}
 		return result;
 	}
 
-
 	/**
 	 * Build agent runner configuration with common settings.
 	 * Delegates to RunnerConfigBuilder for shared config assembly.
