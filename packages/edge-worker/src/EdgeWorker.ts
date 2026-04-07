@@ -496,6 +496,20 @@ export class EdgeWorker extends EventEmitter {
 				this.configManager.setConfig(changes.newConfig);
 				this.runnerSelectionService.setConfig(changes.newConfig);
 				this.toolPermissionResolver.setConfig(changes.newConfig);
+				// Rebuild user access control from updated config
+				const updatedRepoAccessConfigs = new Map<
+					string,
+					import("cyrus-core").UserAccessControlConfig | undefined
+				>();
+				for (const repo of changes.newConfig.repositories) {
+					if (repo.isActive !== false) {
+						updatedRepoAccessConfigs.set(repo.id, repo.userAccessControl);
+					}
+				}
+				this.userAccessControl = new UserAccessControl(
+					changes.newConfig.userAccessControl,
+					updatedRepoAccessConfigs,
+				);
 			},
 		);
 		this.configManager.startConfigWatcher();
@@ -3530,6 +3544,19 @@ ${taskSection}`;
 			allowedDirectories,
 		} = sessionData;
 
+		// For mention-triggered sessions, store the triggering comment ID so the final
+		// response is posted as a threaded reply to that comment rather than as a new
+		// top-level comment. This gives the conversation a natural threaded reply feel.
+		if (isMentionTriggered && agentSession.comment?.id) {
+			agentSessionManager.setSessionTriggeringCommentId(
+				sessionId,
+				agentSession.comment.id,
+			);
+			log.debug(
+				`Set triggering comment ID ${agentSession.comment.id} for mention-triggered session`,
+			);
+		}
+
 		// Fetch labels early (needed for system prompt and runner selection)
 		const labels = await this.fetchIssueLabels(fullIssue);
 
@@ -5015,6 +5042,14 @@ ${taskSection}`;
 		// 4. Append agent context — dynamic values for skills to reference
 		systemPrompt += this.buildAgentContextBlock();
 
+		// 4b. Append project memory — persisted knowledge from .cyrus/memory.md
+		const primaryRepo = (input.repositories ?? [input.repository])[0];
+		const worktreePath =
+			(primaryRepo?.id &&
+				input.session.workspace.repoPaths?.[primaryRepo.id]) ??
+			input.session.workspace.path;
+		systemPrompt += await this.readProjectMemory(worktreePath);
+
 		// 5. Build issue context using appropriate builder
 		// Use label-based prompt ONLY if we have a label-based system prompt
 		const promptType = this.determinePromptType(
@@ -5070,6 +5105,30 @@ ${input.userComment}
 				isStreaming: false,
 			},
 		};
+	}
+
+	/**
+	 * Read project memory from .cyrus/memory.md in the worktree.
+	 *
+	 * Returns an XML-wrapped block to inject into the system prompt, or an
+	 * empty string if the file doesn't exist, is empty, or cannot be read.
+	 * Truncates at 8000 characters to prevent runaway context usage.
+	 */
+	private async readProjectMemory(worktreePath: string): Promise<string> {
+		const memoryPath = join(worktreePath, ".cyrus", "memory.md");
+		try {
+			const content = await readFile(memoryPath, "utf8");
+			const trimmed = content.trim();
+			if (!trimmed) return "";
+			const truncated =
+				trimmed.length > 8000
+					? `${trimmed.slice(0, 8000)}\n\n[...memory truncated at 8000 characters]`
+					: trimmed;
+			return `\n\n<project_memory>\n${truncated}\n</project_memory>`;
+		} catch {
+			// File doesn't exist or isn't readable — skip silently
+			return "";
+		}
 	}
 
 	/**
