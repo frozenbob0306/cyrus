@@ -475,6 +475,9 @@
 							}
 						},
 						"additionalProperties": false
+					},
+					"useIdentifierAsBranchName": {
+						"type": "boolean"
 					}
 				},
 				"required": ["id", "name", "repositoryPath", "baseBranch"],
