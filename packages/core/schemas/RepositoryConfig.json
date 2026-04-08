@@ -470,6 +470,9 @@
 				}
 			},
 			"additionalProperties": false
+		},
+		"useIdentifierAsBranchName": {
+			"type": "boolean"
 		}
 	},
 	"required": [

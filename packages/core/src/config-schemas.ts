@@ -188,6 +188,14 @@ export const RepositoryConfigSchema = z.object({
 
 	// Repository-specific user access control
 	userAccessControl: UserAccessControlConfigSchema.optional(),
+
+	/**
+	 * When true, branch names are derived solely from the issue identifier
+	 * (e.g. "NVT-2" → "nvt-2"), ignoring Linear's suggested branchName and
+	 * the issue title. Useful when you want short, predictable branch names.
+	 * Defaults to false (uses Linear's branchName or "identifier-title" format).
+	 */
+	useIdentifierAsBranchName: z.boolean().optional(),
 });
 
 /**
