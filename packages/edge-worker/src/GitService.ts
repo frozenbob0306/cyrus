@@ -98,6 +98,32 @@ export class GitService {
 	}
 
 	/**
+	 * Resolve the branch name for an issue.
+	 *
+	 * When `repository.useIdentifierAsBranchName` is true, returns the
+	 * issue identifier in lowercase (e.g. "NVT-2" → "nvt-2"), ignoring
+	 * Linear's suggested branchName and the issue title.
+	 *
+	 * Otherwise falls back to the original behavior:
+	 *   Linear branchName  →  "identifier-title-slug"
+	 */
+	public resolveBranchName(
+		issue: { identifier: string; branchName?: string; title?: string | null },
+		repository: { useIdentifierAsBranchName?: boolean },
+	): string {
+		if (repository.useIdentifierAsBranchName) {
+			return issue.identifier.toLowerCase();
+		}
+		const raw =
+			issue.branchName ||
+			`${issue.identifier}-${(issue.title ?? "")
+				.toLowerCase()
+				.replace(/\s+/g, "-")
+				.substring(0, 30)}`;
+		return this.sanitizeBranchName(raw);
+	}
+
+	/**
 	 * Resolve mutable Git metadata directories for a repository/worktree.
 	 * This includes linked worktree metadata paths (for example
 	 * `.git/worktrees/<name>/FETCH_HEAD`) that must be writable by sandboxes.
@@ -305,14 +331,9 @@ export class GitService {
 						`Issue ${issue.identifier} has graphite label and is blocked by ${blockingIssue.identifier}`,
 					);
 
-					const blockingRawBranchName =
-						blockingIssue.branchName ||
-						`${blockingIssue.identifier}-${(blockingIssue.title ?? "")
-							.toLowerCase()
-							.replace(/\s+/g, "-")
-							.substring(0, 30)}`;
-					const blockingBranchName = this.sanitizeBranchName(
-						blockingRawBranchName,
+					const blockingBranchName = this.resolveBranchName(
+						blockingIssue,
+						repository,
 					);
 
 					const blockingBranchExists = await this.branchExists(
@@ -349,13 +370,7 @@ export class GitService {
 					`Issue ${issue.identifier} has parent: ${parent.identifier}`,
 				);
 
-				const parentRawBranchName =
-					parent.branchName ||
-					`${parent.identifier}-${parent.title
-						?.toLowerCase()
-						.replace(/\s+/g, "-")
-						.substring(0, 30)}`;
-				const parentBranchName = this.sanitizeBranchName(parentRawBranchName);
+				const parentBranchName = this.resolveBranchName(parent, repository);
 
 				const parentBranchExists = await this.branchExists(
 					parentBranchName,
@@ -613,14 +628,8 @@ export class GitService {
 				throw new Error("Not a git repository");
 			}
 
-			// Use Linear's preferred branch name, or generate one if not available
-			const rawBranchName =
-				issue.branchName ||
-				`${issue.identifier}-${issue.title
-					?.toLowerCase()
-					.replace(/\s+/g, "-")
-					.substring(0, 30)}`;
-			const branchName = this.sanitizeBranchName(rawBranchName);
+			// Resolve branch name based on repository config
+			const branchName = this.resolveBranchName(issue, repository);
 			const workspacePath =
 				workspacePathOverride ??
 				join(repository.workspaceBaseDir, issue.identifier);

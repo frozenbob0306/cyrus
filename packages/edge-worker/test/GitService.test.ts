@@ -231,7 +231,7 @@ describe("GitService", () => {
 		title: "Fix the shader",
 		description: null,
 		url: "",
-		branchName: "cyrustester/eng-97-fix-shader",
+		branchName: "cyrustester/eng-97-fix-shader", // ignored — branch name is derived from identifier
 		assigneeId: null,
 		stateId: null,
 		teamId: null,
@@ -261,6 +261,7 @@ describe("GitService", () => {
 		repositoryPath: "/home/user/repo",
 		workspaceBaseDir: "/home/user/.cyrus/worktrees",
 		baseBranch: "main",
+		useIdentifierAsBranchName: true, // use identifier-only branch names by default in tests
 		...overrides,
 	});
 
@@ -285,15 +286,11 @@ describe("GitService", () => {
 					return [
 						"worktree /home/user/.cyrus/worktrees/LINEAR-SESSION",
 						"HEAD 789abc012def",
-						"branch refs/heads/cyrustester/eng-97-fix-shader",
+						"branch refs/heads/eng-97",
 						"",
 					].join("\n");
 				}
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-97-fix-shader"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-97"')) {
 					// Branch exists
 					return Buffer.from("abc123\n");
 				}
@@ -322,11 +319,7 @@ describe("GitService", () => {
 					// Both the path check and branch check return nothing
 					return "";
 				}
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-97-fix-shader"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-97"')) {
 					// Branch exists
 					return Buffer.from("abc123\n");
 				}
@@ -335,7 +328,7 @@ describe("GitService", () => {
 				}
 				if (cmdStr.includes("git worktree add")) {
 					throw new Error(
-						"fatal: 'cyrustester/eng-97-fix-shader' is already used by worktree at '/home/user/.cyrus/worktrees/LINEAR-SESSION'",
+						"fatal: 'eng-97' is already used by worktree at '/home/user/.cyrus/worktrees/LINEAR-SESSION'",
 					);
 				}
 				return Buffer.from("");
@@ -369,11 +362,7 @@ describe("GitService", () => {
 				if (cmdStr === "git worktree list --porcelain") {
 					return "";
 				}
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-97-fix-shader"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-97"')) {
 					return Buffer.from("abc123\n");
 				}
 				if (cmdStr.includes("git fetch origin")) {
@@ -404,16 +393,12 @@ describe("GitService", () => {
 				}
 				if (cmdStr === "git worktree list --porcelain") {
 					// Git still lists the stale worktree entry
-					return `worktree /home/user/repo\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/.cyrus/worktrees/ENG-97\nHEAD def456\nbranch refs/heads/cyrustester/eng-97-fix-shader\n`;
+					return `worktree /home/user/repo\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/.cyrus/worktrees/ENG-97\nHEAD def456\nbranch refs/heads/eng-97\n`;
 				}
 				if (cmdStr === "git worktree prune") {
 					return Buffer.from("");
 				}
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-97-fix-shader"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-97"')) {
 					throw new Error("not found");
 				}
 				if (cmdStr.includes("git fetch origin")) {
@@ -462,11 +447,7 @@ describe("GitService", () => {
 					// Only a sub-path worktree exists, not the exact path
 					return `worktree /home/user/repo\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/.cyrus/worktrees/CYSV-56/cyrus\nHEAD def456\nbranch refs/heads/feat\n`;
 				}
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-97-fix-shader"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "cysv-56"')) {
 					throw new Error("not found");
 				}
 				if (cmdStr.includes("git fetch origin")) {
@@ -900,11 +881,7 @@ describe("GitService", () => {
 			// Mock branchExists to return true for parent branch
 			mockExecSync.mockImplementation((cmd: any) => {
 				const cmdStr = String(cmd);
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-96-parent-issue"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-96"')) {
 					return Buffer.from("abc123\n");
 				}
 				throw new Error("not found");
@@ -912,7 +889,7 @@ describe("GitService", () => {
 
 			const result = await gitService.determineBaseBranch(issue, repository);
 
-			expect(result.branch).toBe("cyrustester/eng-96-parent-issue");
+			expect(result.branch).toBe("eng-96");
 			expect(result.source).toBe("parent-issue");
 			expect(result.detail).toContain("ENG-96");
 		});
@@ -949,11 +926,7 @@ describe("GitService", () => {
 			// Mock branchExists to return true for blocking branch
 			mockExecSync.mockImplementation((cmd: any) => {
 				const cmdStr = String(cmd);
-				if (
-					cmdStr.includes(
-						'git rev-parse --verify "cyrustester/eng-95-blocking"',
-					)
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-95"')) {
 					return Buffer.from("abc123\n");
 				}
 				throw new Error("not found");
@@ -961,7 +934,7 @@ describe("GitService", () => {
 
 			const result = await gitService.determineBaseBranch(issue, repository);
 
-			expect(result.branch).toBe("cyrustester/eng-95-blocking");
+			expect(result.branch).toBe("eng-95");
 			expect(result.source).toBe("graphite-blocked-by");
 			expect(result.detail).toContain("ENG-95");
 			expect(mockLogger.info).toHaveBeenCalledWith(
@@ -1001,9 +974,7 @@ describe("GitService", () => {
 			// Mock branchExists: blocking branch doesn't exist, parent does
 			mockExecSync.mockImplementation((cmd: any) => {
 				const cmdStr = String(cmd);
-				if (
-					cmdStr.includes('git rev-parse --verify "cyrustester/eng-96-parent"')
-				) {
+				if (cmdStr.includes('git rev-parse --verify "eng-96"')) {
 					return Buffer.from("abc123\n");
 				}
 				throw new Error("not found");
@@ -1011,7 +982,7 @@ describe("GitService", () => {
 
 			const result = await gitService.determineBaseBranch(issue, repository);
 
-			expect(result.branch).toBe("cyrustester/eng-96-parent");
+			expect(result.branch).toBe("eng-96");
 			expect(result.source).toBe("parent-issue");
 			expect(result.detail).toContain("ENG-96");
 		});
@@ -1063,7 +1034,7 @@ describe("GitService", () => {
 
 			mockExecSync.mockImplementation((cmd: any) => {
 				const cmdStr = String(cmd);
-				if (cmdStr.includes('git rev-parse --verify "eng-95-branch"')) {
+				if (cmdStr.includes('git rev-parse --verify "eng-95"')) {
 					return Buffer.from("abc123\n");
 				}
 				throw new Error("not found");
@@ -1071,7 +1042,7 @@ describe("GitService", () => {
 
 			const result = await gitService.determineBaseBranch(issue, repository);
 
-			expect(result.branch).toBe("eng-95-branch");
+			expect(result.branch).toBe("eng-95");
 			expect(result.source).toBe("graphite-blocked-by");
 			expect(result.detail).toContain("ENG-95");
 		});
