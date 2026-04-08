@@ -5287,6 +5287,47 @@ ${input.userComment}
 	}
 
 	/**
+	 * Resolve the default runner type for SimpleRunner (classification) use.
+	 * Uses config.defaultRunner if set, otherwise auto-detects from API keys,
+	 * falling back to "claude".
+	 */
+	private resolveDefaultSimpleRunnerType():
+		| "claude"
+		| "gemini"
+		| "codex"
+		| "cursor"
+		| "opencode" {
+		if (this.config.defaultRunner) {
+			this.logger.info(
+				`🏃 SimpleRunner type resolved from config.defaultRunner: ${this.config.defaultRunner}`,
+			);
+			return this.config.defaultRunner;
+		}
+
+		// Auto-detect: if exactly one runner has API keys set, use it
+		const available: Array<RunnerType> = [];
+		if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY) {
+			available.push("claude");
+		}
+		if (process.env.GEMINI_API_KEY) {
+			available.push("gemini");
+		}
+		if (process.env.OPENAI_API_KEY) {
+			available.push("codex");
+		}
+		if (process.env.CURSOR_API_KEY) {
+			available.push("cursor");
+		}
+
+		const result =
+			available.length === 1 && available[0] ? available[0] : "claude";
+		this.logger.info(
+			`🏃 SimpleRunner type auto-detected: ${result} (available: ${available.join(", ") || "none"}, config.defaultRunner not set)`,
+		);
+		return result;
+	}
+
+	/**
 	 * Build agent runner configuration with common settings.
 	 * Delegates to RunnerConfigBuilder for shared config assembly.
 	 * @returns Object containing the runner config and runner type to use
